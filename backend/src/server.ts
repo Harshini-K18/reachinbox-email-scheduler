@@ -2,7 +2,7 @@ import app from "./app";
 import { env } from "./config/env";
 import { prisma } from "./db/prisma";
 import { redis } from "./db/redis";
-
+import "./workers/email.worker";
 const startServer = async () => {
   try {
     // Test PostgreSQL connection
