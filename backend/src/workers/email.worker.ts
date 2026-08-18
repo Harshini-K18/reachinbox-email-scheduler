@@ -12,7 +12,9 @@ export const emailWorker = new Worker<EmailJobData>(
   "email-queue",
 
   async (job: Job<EmailJobData>) => {
-    console.log(`Processing email job: ${job.id}`);
+    console.log(`\n========== JOB ${job.id} START ==========`);
+
+    console.log("1. Fetching email from PostgreSQL...");
 
     const email = await prisma.email.findUnique({
       where: {
@@ -24,13 +26,19 @@ export const emailWorker = new Worker<EmailJobData>(
       },
     });
 
+    console.log("2. PostgreSQL query completed");
+
     if (!email) {
       throw new Error(`Email ${job.data.emailId} not found`);
     }
 
+    console.log(`3. Email found: ${email.id}`);
+    console.log(`   Recipient: ${email.recipient}`);
+    console.log(`   Status: ${email.status}`);
+
     // Idempotency protection
     if (email.status === "SENT" || email.messageId) {
-      console.log(`Email ${email.id} was already sent. Skipping.`);
+      console.log(`4. Email already sent. Skipping.`);
 
       return {
         success: true,
@@ -39,11 +47,14 @@ export const emailWorker = new Worker<EmailJobData>(
       };
     }
 
-    // Check hourly rate limit
+    console.log("4. Checking hourly rate limit...");
+
     const rateLimit = await checkHourlyRateLimit(
       email.senderId,
       email.campaign.hourlyLimit
     );
+
+    console.log("5. Rate limit result:", rateLimit);
 
     if (!rateLimit.allowed) {
       const delay = Math.max(
@@ -77,6 +88,8 @@ export const emailWorker = new Worker<EmailJobData>(
         }
       );
 
+      console.log("Email rescheduled.");
+
       return {
         success: true,
         rescheduled: true,
@@ -85,15 +98,22 @@ export const emailWorker = new Worker<EmailJobData>(
       };
     }
 
-    // Enforce minimum delay between sends
+    console.log("6. Acquiring send slot...");
+
     await acquireSendSlot();
 
+    console.log("7. Send slot acquired.");
+
     // Re-check after waiting
+    console.log("8. Re-checking email status...");
+
     const latestEmail = await prisma.email.findUnique({
       where: {
         id: email.id,
       },
     });
+
+    console.log("9. Email status re-check completed.");
 
     if (
       !latestEmail ||
@@ -109,6 +129,8 @@ export const emailWorker = new Worker<EmailJobData>(
       };
     }
 
+    console.log("10. Marking email as PROCESSING...");
+
     await prisma.email.update({
       where: {
         id: email.id,
@@ -121,16 +143,27 @@ export const emailWorker = new Worker<EmailJobData>(
       },
     });
 
+    console.log("11. Email marked PROCESSING.");
+
     try {
+      console.log("12. Calling sendEmail()...");
+
       const result = await sendEmail({
         to: email.recipient,
         from: email.sender.email,
         subject: email.subject,
         body: email.body,
-        attachments: Array.isArray((email.campaign as any).attachments)
+        attachments: Array.isArray(
+          (email.campaign as any).attachments
+        )
           ? (email.campaign as any).attachments
           : [],
       });
+
+      console.log("13. sendEmail() completed.");
+      console.log("Mail result:", result);
+
+      console.log("14. Updating email to SENT...");
 
       const updatedEmail = await prisma.email.update({
         where: {
@@ -145,7 +178,7 @@ export const emailWorker = new Worker<EmailJobData>(
       });
 
       console.log(
-        `Email sent successfully: ${updatedEmail.id}`
+        `15. EMAIL SENT SUCCESSFULLY: ${updatedEmail.id}`
       );
 
       if (result.previewUrl) {
@@ -153,6 +186,8 @@ export const emailWorker = new Worker<EmailJobData>(
           `Ethereal preview: ${result.previewUrl}`
         );
       }
+
+      console.log(`========== JOB ${job.id} COMPLETE ==========\n`);
 
       return {
         success: true,
@@ -165,6 +200,8 @@ export const emailWorker = new Worker<EmailJobData>(
         error instanceof Error
           ? error.message
           : "Unknown email sending error";
+
+      console.error("EMAIL SEND ERROR:", message);
 
       await prisma.email.update({
         where: {
