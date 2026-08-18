@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EmailStatus {
+  SCHEDULED
+  PROCESSING
+  SENT
+  FAILED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  googleId  String?  @unique
+  passwordHash String?
+  name      String
+  email     String   @unique
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  senders   Sender[]
+  campaigns Campaign[]
+}
+
+model Sender {
+  id           String   @id @default(cuid())
+  userId       String
+  name         String
+  email        String
+  smtpHost     String
+  smtpPort     Int
+  smtpUser     String
+  smtpPassword String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaigns Campaign[]
+  emails    Email[]
+
+  @@index([userId])
+}
+
+model Campaign {
+  id             String   @id @default(cuid())
+  userId         String
+  senderId       String
+
+  subject        String
+  body           String
+
+  startTime      DateTime
+  delayMs        Int
+  hourlyLimit    Int
+  attachments    Json?
+
+  idempotencyKey String   @unique
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sender Sender @relation(fields: [senderId], references: [id])
+
+  emails Email[]
+
+  @@index([userId])
+  @@index([senderId])
+}
+
+model Email {
+  id             String      @id @default(cuid())
+  campaignId     String
+  senderId       String
+
+  recipient      String
+  subject        String
+  body           String
+
+  sequenceNumber Int
+
+  scheduledAt    DateTime
+  sentAt         DateTime?
+
+  status         EmailStatus @default(SCHEDULED)
+
+  attempts       Int         @default(0)
+  messageId      String?
+  errorMessage   String?
+
+  // Soft-delete and archive state so dashboard counts stay accurate
+  // and archived/deleted messages can be restored/filtered.
+  deletedAt      DateTime?
+  archivedAt     DateTime?
+
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  sender   Sender   @relation(fields: [senderId], references: [id])
+
+  @@index([campaignId])
+  @@index([senderId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([deletedAt])
+  @@index([archivedAt])
+}
