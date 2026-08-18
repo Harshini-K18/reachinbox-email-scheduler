@@ -63,7 +63,9 @@ interface Email {
 }
 
 const api = axios.create({
-  baseURL: "http://localhost:5000/api",
+  baseURL:
+    import.meta.env.VITE_API_URL ||
+    "http://localhost:5000/api",
 });
 
 const AUTO_REFRESH_MS = 10000;
