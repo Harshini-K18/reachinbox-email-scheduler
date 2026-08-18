@@ -37,7 +37,11 @@ export const emailWorker = new Worker<EmailJobData>(
     console.log(`   Status: ${email.status}`);
 
     // Idempotency protection
-    if (email.status === "SENT" || email.messageId) {
+    if (
+  email.status === "SENT" ||
+  email.status === "FAILED" ||
+  email.messageId
+) {
       console.log(`4. Email already sent. Skipping.`);
 
       return {
