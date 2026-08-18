@@ -13,8 +13,8 @@ const startServer = async () => {
     await redis.ping();
     console.log("Redis connected");
 
-    const server = app.listen(env.PORT, () => {
-      console.log(`Server running on http://localhost:${env.PORT}`);
+    const server = app.listen(env.PORT, "0.0.0.0", () => {
+      console.log(`Server running on port ${env.PORT}`);
     });
 
     const shutdown = async () => {
