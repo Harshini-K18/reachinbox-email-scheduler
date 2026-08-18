@@ -84,7 +84,7 @@ type AuthSession = {
   sender: { id: string; name: string; email: string } | null;
 };
 
-const AUTH_TOKEN_KEY = "reachinbox-google-credential";
+const AUTH_TOKEN_KEY = "reachinbox-session-token";
 
 api.interceptors.request.use((config) => {
   const credential = localStorage.getItem(AUTH_TOKEN_KEY);
@@ -2019,7 +2019,7 @@ function LoginScreen({
               throw new Error("Invalid login response");
             }
 
-            onLoggedIn(data, response.credential);
+            onLoggedIn(data, data.token);
           } catch (loginError) {
             console.error("Google login failed:", loginError);
 
