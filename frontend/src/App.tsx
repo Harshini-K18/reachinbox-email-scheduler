@@ -1062,12 +1062,7 @@ function EmailReader({
           </div>
         )}
 
-        {email.status === "FAILED" &&
-          email.errorMessage && (
-            <p className="mt-[20px] rounded-md sm:ml-[42px] bg-[#fff3ef] px-[14px] py-[10px] text-[11px] text-[#cc5f48]">
-              {email.errorMessage}
-            </p>
-          )}
+        
       </article>
     </div>
   );
