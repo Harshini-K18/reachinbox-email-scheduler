@@ -69,38 +69,32 @@ export const sendEmail = async ({
   console.log("SMTP user:", env.ETHEREAL_USER);
 
   try {
-    console.log("SMTP: Verifying connection...");
-
-    await transporter.verify();
-
-    console.log("SMTP: Connection verified.");
+    const htmlBody = body
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/__(.+?)__/g, "<u>$1</u>")
+      .replace(/_([^_]+)_/g, "<em>$1</em>")
+      .replace(/\n/g, "<br />");
 
     const info = await transporter.sendMail({
       from,
       to,
       subject,
       text: body,
-      attachments: attachments.map(
-        dataUrlToAttachment
-      ),
+      html: htmlBody,
+      attachments: attachments.map(dataUrlToAttachment),
     });
 
-    console.log(
-      "SMTP: Email sent:",
-      info.messageId
-    );
+    console.log("SMTP: Email sent:", info.messageId);
 
     return {
       messageId: info.messageId,
-      previewUrl:
-        nodemailer.getTestMessageUrl(info),
+      previewUrl: nodemailer.getTestMessageUrl(info),
     };
   } catch (error) {
-    console.error(
-      "SMTP SEND ERROR:",
-      error
-    );
-
+    console.error("SMTP SEND ERROR:", error);
     throw error;
   }
 };
